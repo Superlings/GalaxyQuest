@@ -9,21 +9,23 @@ function love.keypressed(key)
 	--psuedo pause
 	if key == "escape" then
 		gamestate = "title"
+		click()
 	--cooldown time for shooting
 	elseif key == " " then
-		if shootcount < 0 then
-			shootcount = 1
+		if shootcount >= 0.25 then
+			shootcount = 0
 			shoot()
 		end
 	end
 end
 
 function love.load()
-	--loading images
-	spaceship = love.graphics.newImage("spaceship.png")
-	kirby = love.graphics.newImage("kirby.gif")
-	background = love.graphics.newImage("background.jpg")
-	
+	--load sprites
+	spaceship = love.graphics.newImage("res/sprites/spaceship.png")
+	kirby = love.graphics.newImage("res/sprites/kirby.gif")
+	background = love.graphics.newImage("res/sprites/background.jpg")
+	explosion = love.graphics.newImage("res/sprites/explosion.gif")
+
 	--hero info
 	hero = {}
 	hero.x = resolutionX/2 - 16
@@ -31,10 +33,10 @@ function love.load()
 	hero.width = 32
 	hero.height = 32
 	hero.speed = 200
-	
+
 	--table with shots fired
 	hero.shots = {}
-	
+
 	--table of enemies
 	enemies = {}
 	for i = 1,6 do
@@ -47,17 +49,23 @@ function love.load()
 			table.insert(enemies, enemy)
 		end
 	end
-	
+
 	--timer for enemy x movement
 	countX = 0
 	updateDelayX = 3
-	
+
 	--timer for enemy y movement
 	countY = 0
 	countDelayY = 1
-	
+
 	--timer for shooting
 	shootcount = 0
+
+	--load epic background theme
+	music = love.audio.newSource("res/music/hypertechnoremix.mp3")
+
+	--initiate epic background theme
+	music:play()
 end
 
 --dt stands for delta time google for further explanation if unclear
@@ -66,14 +74,17 @@ function love.update(dt)
 	if gamestate == "title" then
 		if love.keyboard.isDown("return", "enter") then
 			gamestate = "play"
+			shots = 0
+			kills = 0
+			click()
 		end
 	--game implementation
 	else
 		--updates timer
 		countX = countX + dt
 		countY = countY + dt
-		shootcount = shootcount - dt
-		
+		shootcount = shootcount + dt
+
 		--movement of hero
 		if love.keyboard.isDown("left") then
 			if hero.x < 1 then
@@ -97,12 +108,12 @@ function love.update(dt)
 				v.x = v.x - 1
 			end
 		end
-	
+
 		--resets the timer for enemy x movement
 		if countX > updateDelayX*3 then
 			countX = updateDelayX*-1
 		end
-		
+
 		--movement of enemies vertically
 		if countY > countDelayY then
 			for i,v in ipairs(enemies) do
@@ -110,14 +121,14 @@ function love.update(dt)
 			end
 			countY = 0;
 		end
-		
+
 		--new tables for enemies/shots to be removed
 		local remEnemy = {}
 		local remShot = {}
-		
+
 		for i,v in ipairs(hero.shots) do
 			--shots movement
-			v.y = v.y - dt * 100
+			v.y = v.y - dt * 250
 			--shots going off-screen
 			if v.y < 0 then
 				table.insert(remShot, i)
@@ -130,12 +141,15 @@ function love.update(dt)
 				end
 			end
 		end
-		
+
 		--removes enemies from original table
 		for i,v in ipairs(remEnemy) do
 			table.remove(enemies, v)
+			local boomChickaBoom = love.audio.newSource("res/sound/explosion.wav", "static")
+			boomChickaBoom:play()
+			kills = kills + 1
 		end
-		
+
 		--removes shots from table
 		for i,v  in ipairs(remShot) do
 			table.remove(hero.shots, v)
@@ -146,22 +160,27 @@ end
 function love.draw()
 	--draw title screen
 	if gamestate == "title" then
-		love.graphics.setNewFont(50)
+		love.graphics.setNewFont(48)
 		love.graphics.print("Press enter to play", 270, 350)
 	--draw game screen
 	else
 		love.graphics.draw(background)
-	
+
 		for i,v in ipairs(enemies) do
 			love.graphics.draw(spaceship, v.x, v.y)
 		end
 
 		love.graphics.draw(kirby, hero.x, hero.y)
-	
+
 		love.graphics.setColor(255,255,255,255)
 		for i,v in ipairs(hero.shots) do
 			love.graphics.rectangle("fill", v.x, v.y, 2, 5)
 		end
+
+		love.graphics.setNewFont(24)
+		love.graphics.setColor(255,255,255,255)
+		love.graphics.print(string.format("Shots: %d", shots), 0, 0)
+		love.graphics.print(string.format("Kills: %d", kills), 0, 24)
 	end
 end
 
@@ -170,6 +189,11 @@ function shoot()
 	shot.x = hero.x + 10
 	shot.y = hero.y
 	table.insert(hero.shots, shot)
+
+	shots = shots + 1
+
+	local pew = love.audio.newSource("res/sound/pewpew.wav", "static")
+	pew:play()
 end
 
 function CheckCollision(x1,y1,w1,h1, x2,y2,w2,h2)
@@ -177,4 +201,9 @@ function CheckCollision(x1,y1,w1,h1, x2,y2,w2,h2)
          x2 < x1+w1 and
          y1 < y2+h2 and
          y2 < y1+h1
+end
+
+function click()
+	local click = love.audio.newSource("res/sound/button.wav", "static")
+	click:play()
 end
